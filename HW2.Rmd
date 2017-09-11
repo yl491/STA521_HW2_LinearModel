@@ -1,0 +1,111 @@
+---
+title: "HW2 STA521 Fall 17"
+author: '[Your Name Here]'
+date: "Due September 18, 2017"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+# add other libraries here
+```
+
+This exercise involves the UN data set from ALR. Download the `alr4` library and load the data to answer the following questions adding your code in the code chunks.  Please add appropriate code to the chuncks to suppress messages and warnings as needed once you are sure the code is working properly and remove instructions if no longer needed.  Please switch the output to pdf for your final version to upload to Sakai.
+
+```{r data, echo=F}
+library(alr3)
+data(UN3)
+help(UN3)  # remove after reading
+```
+
+## Exploratory Data Analysis
+1. Create a summary of the data.  How many variables have missing data?  Which are quantitative and which are qualtitative?
+
+```{r}
+
+```
+
+2. What is the mean and standard deviation of each quantitative predictor?  Provide in a nicely formatted table.
+
+```{r}
+
+```
+
+
+3. Investigate the predictors graphically, using scatterplots or other tools of your choice. Create some plots
+highlighting the relationships among the predictors. Comment
+on your findings regarding trying to predict `ModernC` from the other variables.  Are there potential outliers, nonlinear relationships or transformations that appear to be needed?
+
+```{r}
+
+```
+
+## Model Fitting
+
+4.  Use the `lm()` function to perform a multiple linear regression with `ModernC` as the response and all other variables as the predictors, using the formula `ModernC ~ .`, where the `.` includes all remaining variables in the dataframe.  Create  diagnostic residual plot  from the linear model object and comment on results regarding assumptions.
+
+```{r}
+
+```
+
+5.  Using the Box-Tidwell  `boxTidwell` from library `car` or graphical methods find appropriate transformations of the predictor variables to be used as predictors in the linear model.  If any predictors are negative, you may need to transform so that they are non-negative.  Describe your method and  the resulting transformations.
+
+
+```{r}
+
+```
+
+6. Given the selected transformations of the predictors, select a transformation of the response and justify.
+
+
+```{r}
+
+```
+
+7.  Fit the regression using the transformed variables.  Provide residual plots and comment.  Provide summaries of coefficients with 95% confidence intervals in a nice table with interpretations.
+
+
+```{r}
+
+```
+
+8. Examine added variable plots and term plots for you model above.  Is it likely that any of the localities are influential for any of the terms?  Which localities?  Which terms?
+
+```{r}
+
+```
+
+9.  Are there any outliers in the data?  Explain.  If so refit the model after removing any outliers.
+
+
+```{r}
+
+```
+## Summary of Results
+
+10. Provide a brief paragraph summarizing your final model  and findings suitable for the US envoy to the UN after adjusting for outlierd or influential points.
+
+
+```{r}
+
+```
+
+
+## Theory
+
+11.  Using  $X^TX = X^T_{(i)}X_{(i)} + x_i x_i^T$ where the subscript $(i)$ means without the ith case, show that 
+
+$$
+( X^T_{(i)}X_{(i)})^{-1} = (X^TX)^{-1} + \frac{(X^TX)^{-1}x_ix_i^T  (X^TX)^{-1}}{1 - h_{ii}}
+$$
+
+where $h_{ii}$ is the $i$th diagonal element of $H = X(X^TX)^{-1}X^T$.
+
+
+12.  Use 11 to show that
+
+$$\hat{\beta}_{(i)} = \hat{\beta} -  \frac{(X^TX)^{-1}x_i e_i}{1 - h_{ii}}$$
+where $\hat{\beta}_{(i)} = ( X^T_{(i)}X_{(i)})^{-1} X_{(i)}^T Y_{(i)}$ and $e_i = y_i - x_i^T\hat{\beta}$.  _Hint write_  $X_{(i)}^T Y_{(i)} = X^TY - x_{(i)}y_{(i)}$.
