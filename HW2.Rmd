@@ -3,6 +3,7 @@ title: "HW2 STA521 Fall 17"
 author: '[Your Name Here]'
 date: "Due September 18, 2017"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
@@ -10,6 +11,10 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(car)
+library(GGally)
+library(dplyr)
+library(ggplot2)
+library(MASS)
 # add other libraries here
 ```
 
@@ -18,20 +23,36 @@ This exercise involves the UN data set from ALR. Download the `alr4` library and
 ```{r data, echo=F}
 library(alr3)
 data(UN3)
-help(UN3)  # remove after reading
 ```
 
 ## Exploratory Data Analysis
 1. Create a summary of the data.  How many variables have missing data?  Which are quantitative and which are qualtitative?
 
 ```{r}
-
+summary(UN3)
+for (i in 1:length(UN3))
+{
+  print(c(colnames(UN3[i]), is.numeric(UN3[,i])))
+  
+}
 ```
+Answer: there are 6 variables that have missing data.\
+The variables with "TRUE" are quantitative -- i.e., all vriables are quantitative
 
 2. What is the mean and standard deviation of each quantitative predictor?  Provide in a nicely formatted table.
 
 ```{r}
+mean_stan<-matrix(data=NA, nrow = 6, ncol = 3)
+m<-1
+for (i in 1:(length(UN3)-1)){
+  mean_stan[m,]<-c(colnames(UN3[i]),mean(na.omit(UN3[,i])),sd(na.omit(UN3[,i])))
+   m<-m+1
+  }
 
+
+stats.data <- data.frame(mean_stan)
+colnames(stats.data)<-c("name","mean","sd")
+knitr::kable(stats.data)
 ```
 
 
@@ -40,53 +61,153 @@ highlighting the relationships among the predictors. Comment
 on your findings regarding trying to predict `ModernC` from the other variables.  Are there potential outliers, nonlinear relationships or transformations that appear to be needed?
 
 ```{r}
-
+gg<-ggpairs(na.omit(UN3),columns=c(2:7,1))
+gg
 ```
-
+Answers: it seems that fertility, purban, ppdgp, and change are useful in predicting modernC. (corr coeff > 0.5)
 ## Model Fitting
 
 4.  Use the `lm()` function to perform a multiple linear regression with `ModernC` as the response and all other variables as the predictors, using the formula `ModernC ~ .`, where the `.` includes all remaining variables in the dataframe.  Create  diagnostic residual plot  from the linear model object and comment on results regarding assumptions.
 
 ```{r}
-
+g<-lm(ModernC~., data=UN3)
+plot(g)
 ```
+Answer: normality assumption is violated: Q-Q plot, not a straight 45-degree line: a lighter tail.\
+others look good, except for figure 3: some non-random stuff in it
 
-5.  Using the Box-Tidwell  `boxTidwell` from library `car` or graphical methods find appropriate transformations of the predictor variables to be used as predictors in the linear model.  If any predictors are negative, you may need to transform so that they are non-negative.  Describe your method and  the resulting transformations.
 
-
+5.  Using the Box-Tidwell  `boxTidwell` from library `car` or graphical methods find appropriate transformations of the predictor variables to be used as predictors in the linear model.  If any predictors are negative, you may need to transform so that they are non-negative.  Describe your method and  the resulting transformations.\
+```{r message=FALSE}
+#UN3$Change_pos<-UN3$Change+5
+#UN3_NA<-na.omit(UN3)
+#m<-cbind(UN3_NA$ModernC,UN3_NA$Change_pos,UN3_NA$PPgdp,UN3_NA$Frate,UN3_NA$Pop,UN3_NA$Fertility,UN3_NA$Purban)
+#k<-powerTransform(m)
+#k
+options(warn=-1)
+UN3_NAA<-na.omit(UN3)
+UN3_NAA$Change_pos<-NULL
+k_bcn<-powerTransform(as.matrix(UN3_NAA[,-1])~.,family="bcnPower",data=UN3_NAA)
+k_bcn
+```
+\
+In this problem, we can use powerTransform function to calculate the power of predictors. Rows with NA values are omitted. Using BCNpower family which accepts negative values will deal with the issues of "Change" (there are negative values inside)\
+Here we can see that Change and Pop have lambda values around 0.3, while all other 4 predictor variables have lambda values approximately 1. Therefore we transform Change and Pop according to their lambda values, while keeping the rest variables unchanged. We compare the termplots before transformation and afterwards to see if this really works.
 ```{r}
+#z<-lm(ModernC~Change_pos+log(PPgdp)+Frate+log(Pop)+log(Fertility)+Purban,data=UN3_NA)
+new_trans<-lm(ModernC~Purban+Frate+I(Change^0.3)+I(Pop^0.33)+Fertility+PPgdp,data=UN3_NAA)
+
+termplot(g,terms="Change",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#g is the original linear regression formula, in problem 3
+termplot(new_trans,terms="I(Change^0.3)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+
+termplot(g,terms="Pop",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+termplot(new_trans,terms="I(Pop^0.33)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+
+#termplot(lm(ModernC ~.-Change,data=UN3_NA),terms="PPgdp",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change-PPgdp+log(PPgdp),data=UN3_NA),terms="log(PPgdp)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change,data=UN3_NA),terms="Pop",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change-Pop+log(Pop),data=UN3_NA),terms="log(Pop)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change,data=UN3_NA),terms="Fertility",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change-Fertility+log(Fertility),data=UN3_NA),terms="log(Fertility)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+```
+\
+Comparing each pair of termplots, we can see that:\
+1. it seems that Change^0.3 is a little bit better than Change.\
+2. it seems that Pop^0.33 fits better.\
+We then look at addv plots to determine whether tranformations should take place.\
+```{r}
+mod1 = lm(ModernC ~ ., data=UN3_NAA)
+avPlots(mod1,id.n=1)
+
+avPlots(new_trans,id.n=1)
+
+#mod2 = lm(ModernC ~ .-Change-Pop+log(Pop), data=UN3_NA)
+#avPlots(mod2)
+#mod3 = lm(ModernC ~ .-Change-Pop-PPgdp+log(PPgdp)+log(Pop), data=UN3_NA)
+#avPlots(mod3)
+#mod4=lm(ModernC ~ .-Change-Pop-PPgdp-Fertility+log(PPgdp)+log(Pop)+log(Fertility), data=UN3_NA)
+#avPlots(mod4)
+
 
 ```
-
+\
+After checking these plots, i finally decided to tranform "Change" and "Pop", with power 0.3 and 0.33 respectively. (These numbers are from the powerTransform results.\
 6. Given the selected transformations of the predictors, select a transformation of the response and justify.
 
 
 ```{r}
-
+new_trans<-lm(ModernC~Purban+Frate+I(Change^0.3)+I(Pop^0.33)+Fertility+PPgdp,data=UN3_NAA)
+boxcox(new_trans)
+lambda = b$x
+likeli = b$y
+maxlambda<-cbind(lambda,lik)[order(-likeli),][1]
+maxlambda
 ```
+\
+Answer: the graph indicates that lambda is 0.7878788, so we transform Y with power 0.79.
 
 7.  Fit the regression using the transformed variables.  Provide residual plots and comment.  Provide summaries of coefficients with 95% confidence intervals in a nice table with interpretations.
 
 
 ```{r}
-
+newnew_trans<-lm((ModernC^0.79)~Purban+Frate+I(Change^0.3)+I(Pop^0.33)+Fertility+PPgdp,data=UN3_NAA)
+plot(newnew_trans)
 ```
-
+From the residual plots, we can see that the regression model of transformed variables looks better than the original one. Although there still exists a lighter tail in the normal Q-Q plot, it is much better than the original model. The residual vs leverage plot also becomes better.
+```{r}
+test<-matrix(data=NA, nrow = 6, ncol = 3)
+cc<-summary(newnew_trans)
+for (i in 2:length(coefficients(newnew_trans)))
+{
+  
+  test[i-1,]<-c(rownames(cc$coefficients)[i],confint(newnew_trans, rownames(cc$coefficients)[i], level=0.95)) 
+}
+ci_data<-data.frame(test)
+colnames(ci_data)<-c("Var Name","2.5%","97.5%")
+knitr::kable(ci_data)
+```
+\
+Answer: The confidence intervals mean that we are 95% confident that the coefficient of a specific predictor will fall in the corresponding 2.5%~97.5% range, which is listed above.\
 8. Examine added variable plots and term plots for you model above.  Is it likely that any of the localities are influential for any of the terms?  Which localities?  Which terms?
 
 ```{r}
-
+avPlots(newnew_trans,id.n=1)
+termplot(newnew_trans,terms="I(Change^0.3)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+termplot(newnew_trans,terms="PPgdp",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+termplot(newnew_trans,terms="Frate",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+termplot(newnew_trans,terms="I(Pop^0.33)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+termplot(newnew_trans,terms="Fertility",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+termplot(newnew_trans,terms="Purban",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change_pos-Pop-PPgdp+log(Pop)+log(PPgdp),data=UN3_NA),terms="log(Pop)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change_pos-Pop-PPgdp+log(Pop)+log(PPgdp),data=UN3_NA),terms="Fertility",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change_pos-Pop-PPgdp+log(Pop)+log(PPgdp),data=UN3_NA),terms="Frate",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change_pos-Pop-PPgdp+log(Pop)+log(PPgdp),data=UN3_NA),terms="Change",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change_pos-Pop-PPgdp+log(Pop)+log(PPgdp),data=UN3_NA),terms="log(PPgdp)",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
+#termplot(lm(ModernC ~.-Change_pos-Pop-PPgdp+log(Pop)+log(PPgdp),data=UN3_NA),terms="Purban",partial.resid = T, se=T, rug=T,smooth = panel.smooth)
 ```
-
-9.  Are there any outliers in the data?  Explain.  If so refit the model after removing any outliers.
-
-
+\
+Answer:\
+1. from addv plot, we can see that for I(Pop^0.33), the locality seems to be China.\
+2. from termplot for I(Pop^0.33), it seems that there are 2 localities: China and India.\
+There seems to be no obvious localities in other plots.\
+\
+9.  Are there any outliers in the data?  Explain.  If so refit the model after removing any outliers.\
+Yes there is. By looking at previous plots, I think China, India and Azerbaijan are the most influential data
+Answer: 
 ```{r}
+UN3_rmCN<-UN3_NAA
+UN3_rmCN <- UN3_rmCN[-25,]#remove the row of Azerbaijan
+#UN3_rm<-UN3_rmCN[-24,]#remove the row of China
+
+#kk_bcn<-powerTransform(as.matrix(UN3_rmCN[,-1])~.,family="bcnPower",data=UN3_rmCN)
+
+UN
 
 ```
 ## Summary of Results
 
-10. Provide a brief paragraph summarizing your final model  and findings suitable for the US envoy to the UN after adjusting for outlierd or influential points.
+10. Provide a brief paragraph summarizing your final model and findings suitable for the US envoy to the UN after adjusting for outlierd or influential points.
 
 
 ```{r}
@@ -100,12 +221,35 @@ on your findings regarding trying to predict `ModernC` from the other variables.
 
 $$
 ( X^T_{(i)}X_{(i)})^{-1} = (X^TX)^{-1} + \frac{(X^TX)^{-1}x_ix_i^T  (X^TX)^{-1}}{1 - h_{ii}}
-$$
+$$where $h_{ii}$ is the $i$th diagonal element of $H = X(X^TX)^{-1}X^T$.\
 
-where $h_{ii}$ is the $i$th diagonal element of $H = X(X^TX)^{-1}X^T$.
+Start with the equation that we want to show, (1): $$( X^T_{(i)}X_{(i)})^{-1} = (X^TX)^{-1} + \frac{(X^TX)^{-1}x_ix_i^T  (X^TX)^{-1}}{1 - h_{ii}}$$
+Multiply $$(X^TX)(1-h_{ii})$$ to each side of (1), WTS: $$(X^TX)( X^T_{(i)}X_{(i)})^{-1}(1-h_{ii}) = (X^TX)(X^TX)^{-1}(1-h_{ii}) + (X^TX)(X^TX)^{-1}x_ix_i^T(X^TX)^{-1}$$
 
+$$(X^T_{(i)}X_{(i)}+x_i x_i^T)( X^T_{(i)}X_{(i)})^{-1}(1-h_{ii})=I(1-h_{ii})+x_ix_i^T(X^TX)^{-1}$$
+
+$$I(1-h_{ii})+x_i x_i^T( X^T_{(i)}X_{(i)})^{-1}(1-h_{ii})=I(1-h_{ii})+x_ix_i^T(X^TX)^{-1}$$
+Multiply$$X^T_{(i)}X_{(i)}$$ to each side again, then the equation becomes: $$x_i x_i^T(1-h_{ii})=x_ix_i^T(X^TX)^{-1}(X^TX-x_ix_i^T)$$
+
+$$x_ix_i^T(1-h_{ii})=x_ix_i^T(I-(X^TX)^{-1}x_ix_i^T)$$
+$$x_ix_i^Th_{ii}=x_ix_i^T(X^TX)^{-1}x_ix_i^T$$
+Notice that $$h_{ii}=x_i(X^TX)^{-1}x_i)$$, and it is a scalar
+So the equation we want to show turns out to be $$x_ix_i^Th_{ii}=x_ih_{ii}x_i^T$$
+Which is obvious to be true.
+
+Therefore, starting with this equation and going back, we can prove $$( X^T_{(i)}X_{(i)})^{-1} = (X^TX)^{-1} + \frac{(X^TX)^{-1}x_ix_i^T  (X^TX)^{-1}}{1 - h_{ii}}$$
 
 12.  Use 11 to show that
 
 $$\hat{\beta}_{(i)} = \hat{\beta} -  \frac{(X^TX)^{-1}x_i e_i}{1 - h_{ii}}$$
-where $\hat{\beta}_{(i)} = ( X^T_{(i)}X_{(i)})^{-1} X_{(i)}^T Y_{(i)}$ and $e_i = y_i - x_i^T\hat{\beta}$.  _Hint write_  $X_{(i)}^T Y_{(i)} = X^TY - x_{(i)}y_{(i)}$.
+where $\hat{\beta}_{(i)} = ( X^T_{(i)}X_{(i)})^{-1} X_{(i)}^T Y_{(i)}$ and $e_i = y_i - x_i^T\hat{\beta}$.  _Hint write_  $X_{(i)}^T Y_{(i)} = X^TY - x_{i}y_{i}$.
+
+$$\hat{\beta}_{(i)} = ( X^T_{(i)}X_{(i)})^{-1} X_{(i)}^T Y_{(i)}$$
+$$=( X^T_{(i)}X_{(i)})^{-1} = [(X^TX)^{-1} + \frac{(X^TX)^{-1}x_ix_i^T  (X^TX)^{-1}}{1 - h_{ii}}][X^TY-x_iy_i]$$
+$$=(X^TX)^{-1}X^TY+(X^TX)^{-1}[\frac{x_ix_i^T  (X^TX)^{-1}X^TY-x_iy_i(1-h_{ii})-x_ix_i^T  (X^TX)^{-1}x_iy_i}{1-h_{ii}}]$$
+
+$$=\hat{\beta}+\frac{(X^TX)^{-1}}{1-h_{ii}}[x_ix_i^T  (X^TX)^{-1}X^TX\hat{\beta}-x_iy_i+x_iy_ih_{ii}-x_ih_{ii}y_i]$$
+$$=\hat{\beta}+\frac{(X^TX)^{-1}}{1-h_{ii}}[x_ix_i^T\hat{\beta}-x_iy_i]$$
+$$=\hat{\beta}-\frac{(X^TX)^{-1}x_ie_i}{1-h_{ii}}$$
+
+
